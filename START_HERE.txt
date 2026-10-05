@@ -1,0 +1,15 @@
+CLINIC IDEAS — START HERE
+
+1. Double-click “Start Clinic Ideas.command”.
+2. A terminal window should say: “Clinic Insight Bank is ready”.
+3. Your browser should open automatically.
+
+If it does not, copy this exact address into your normal browser:
+
+http://127.0.0.1:8765
+
+Leave the terminal window open while you use the app.
+
+If your project is in a remote VS Code / Codespace / container window, use the IDE's
+Ports panel to forward port 8765, then open the forwarded URL. A file opened directly
+from the Explorer cannot access the app's persistent local database.
