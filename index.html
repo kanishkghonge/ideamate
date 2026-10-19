@@ -1,6 +1,315 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Clinic Insight Bank</title><link rel="stylesheet" href="style.css"></head><body>
-<header><a class="brand" href="#home">Clinic<span>Ideas</span></a><nav><button data-page="home">Discover</button><button data-page="browse">Browse</button><button data-page="add">Add</button><button data-page="review">Review <i id="draftCount"></i></button><button data-page="history">History</button></nav></header>
-<main><section id="home" class="page active"><div class="eyebrow">YOUR NEXT VIDEO IDEA</div><div class="filterbar"><div id="categoryFilters"></div><div id="ctaFilters"></div></div><article id="card" class="insight-card"><p class="loading">Picking from your idea bank…</p></article><div class="actions"><button class="secondary" onclick="act('skipped')">Not this</button><button class="danger" onclick="act('trash')">Trash</button><button class="primary" onclick="act('used')">Thanks / use it →</button></div><button class="new" onclick="loadRandom()">↻ New insight</button></section>
-<section id="browse" class="page"><div class="section-head"><h1>Browse all insights</h1><span id="browseCount"></span></div><div class="toolbar"><input id="search" placeholder="Search the idea bank"><select id="state"><option value="all">All insights</option><option value="active">Active only</option><option value="trash">Trash only</option></select><select id="sort"><option value="new">Newest</option><option value="least">Least used</option><option value="used">Most used</option><option value="category">Category</option></select></div><div id="list" class="list"></div></section>
-<section id="add" class="page"><h1>Add to the idea bank</h1><div class="tabs"><button class="tab selected" onclick="showAdd('single')">One insight</button><button class="tab" onclick="showAdd('bulk')">Bulk paste</button><button class="tab" onclick="showAdd('generate')">Generate more</button></div><div id="single" class="add-panel form"></div><div id="bulk" class="add-panel hidden"><p>Paste one insight per line using: <code>Core insight | Indian clinic application | Category | CTA</code></p><textarea id="bulkText" rows="12" placeholder="A busy OPD can hide a weak practice | Explain the mechanism… | Economics | Consultation Calculator"></textarea><button class="primary" onclick="bulkAdd()">Import insights</button></div><div id="generate" class="add-panel hidden form"><p class="note">Generation creates a review queue first. It is designed to avoid generic advice and requires an <code>OPENAI_API_KEY</code> when starting the local server.</p><label>Category / topic<input id="genTopic" placeholder="e.g. appointment capacity, dermatology follow-ups"></label><label>Number (1–12)<input id="genCount" type="number" min="1" max="12" value="5"></label><button class="primary" onclick="generate()">Generate review ideas</button><p id="genStatus"></p></div></section>
-<section id="review" class="page"><div class="section-head"><h1>Generated ideas to review</h1><button class="primary" onclick="approveDrafts()">Approve selected</button></div><div id="drafts" class="list"></div></section><section id="history" class="page"><h1>Activity history</h1><div id="historyList" class="list"></div></section></main><dialog id="editor"><form method="dialog" class="form"><div class="section-head"><h2>Edit insight</h2><button>×</button></div><div id="editFields"></div><button class="primary" type="button" onclick="saveEdit()">Save changes</button></form></dialog><script src="app.js"></script></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Content Idea Bank</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1 class="logo">💡 Idea Bank</h1>
+            <ul class="nav-menu">
+                <li><a href="#" data-page="discover" class="nav-link active">Discover</a></li>
+                <li><a href="#" data-page="all" class="nav-link">All Ideas</a></li>
+                <li><a href="#" data-page="default-insights" class="nav-link">Default Insights</a></li>
+                <li><a href="#" data-page="user-ideas" class="nav-link">My Ideas</a></li>
+                <li><a href="#" data-page="saved" class="nav-link">Saved</a></li>
+                <li><a href="#" data-page="used" class="nav-link">Used</a></li>
+                <li><a href="#" data-page="trash" class="nav-link">Trash</a></li>
+                <li><a href="#" data-page="import-export" class="nav-link">Import/Export</a></li>
+                <li><a href="#" data-page="settings" class="nav-link">Settings</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Discover Page -->
+        <div id="discover-page" class="page active">
+            <div class="stats-bar">
+                <div class="stat">
+                    <span class="stat-label">Fresh Ideas</span>
+                    <span class="stat-value" id="fresh-count">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Saved</span>
+                    <span class="stat-value" id="saved-count">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Used</span>
+                    <span class="stat-value" id="used-count">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Trashed</span>
+                    <span class="stat-value" id="trash-count">0</span>
+                </div>
+            </div>
+
+            <div class="discover-container">
+                <button id="give-idea-btn" class="primary-btn">Give Me an Idea</button>
+                
+                <div id="idea-card" class="idea-card hidden">
+                    <div class="category-badge" id="idea-category"></div>
+                    <h2 id="idea-title"></h2>
+                    <div class="idea-section">
+                        <h3>Description</h3>
+                        <p id="idea-description"></p>
+                    </div>
+                    <div class="idea-section">
+                        <h3>Evidence / Execution Notes</h3>
+                        <p id="idea-evidence"></p>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button id="use-btn" class="btn btn-use">USE</button>
+                        <button id="trash-btn" class="btn btn-trash">TRASH</button>
+                        <button id="save-btn" class="btn btn-save">SAVE</button>
+                        <button id="skip-btn" class="btn btn-skip">SKIP</button>
+                        <button id="edit-btn" class="btn btn-edit">EDIT</button>
+                    </div>
+                </div>
+
+                <div id="no-ideas-message" class="message hidden">
+                    <p>No eligible ideas available. Import some ideas or check your saved/trashed ideas.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- All Ideas Page -->
+        <div id="all-page" class="page">
+            <div class="page-header">
+                <h2>All Ideas</h2>
+                <button id="add-idea-btn" class="primary-btn">+ Add New Idea</button>
+            </div>
+            
+            <div class="filters">
+                <input type="text" id="search-all" placeholder="Search ideas..." class="search-input">
+                <select id="filter-category-all" class="filter-select">
+                    <option value="">All Categories</option>
+                </select>
+            </div>
+
+            <div id="all-ideas-list" class="ideas-list"></div>
+        </div>
+
+        <!-- Default Insights Page -->
+        <div id="default-insights-page" class="page">
+            <div class="page-header">
+                <h2>📚 Default Insights</h2>
+                <p class="page-description">Insights from the doctor_content_bank.xlsx - these are the default ideas provided with the system.</p>
+            </div>
+            
+            <div class="filters">
+                <input type="text" id="search-default" placeholder="Search default insights..." class="search-input">
+                <select id="filter-category-default" class="filter-select">
+                    <option value="">All Categories</option>
+                </select>
+            </div>
+
+            <div id="default-ideas-list" class="ideas-list"></div>
+        </div>
+
+        <!-- User-Created Ideas Page -->
+        <div id="user-ideas-page" class="page">
+            <div class="page-header">
+                <h2>✍️ My Ideas</h2>
+                <p class="page-description">Ideas you've created yourself.</p>
+                <button id="add-user-idea-btn" class="primary-btn">+ Add New Idea</button>
+            </div>
+            
+            <div class="filters">
+                <input type="text" id="search-user" placeholder="Search your ideas..." class="search-input">
+                <select id="filter-category-user" class="filter-select">
+                    <option value="">All Categories</option>
+                </select>
+            </div>
+
+            <div id="user-ideas-list" class="ideas-list"></div>
+        </div>
+
+        <!-- Saved Ideas Page -->
+        <div id="saved-page" class="page">
+            <div class="page-header">
+                <h2>Saved Ideas</h2>
+            </div>
+            
+            <div class="filters">
+                <input type="text" id="search-saved" placeholder="Search saved ideas..." class="search-input">
+                <select id="filter-category-saved" class="filter-select">
+                    <option value="">All Categories</option>
+                </select>
+            </div>
+
+            <div id="saved-ideas-list" class="ideas-list"></div>
+        </div>
+
+        <!-- Used Ideas Page -->
+        <div id="used-page" class="page">
+            <div class="page-header">
+                <h2>Used Ideas</h2>
+            </div>
+            
+            <div class="filters">
+                <input type="text" id="search-used" placeholder="Search used ideas..." class="search-input">
+                <select id="filter-category-used" class="filter-select">
+                    <option value="">All Categories</option>
+                </select>
+            </div>
+
+            <div id="used-ideas-list" class="ideas-list"></div>
+        </div>
+
+        <!-- Trash Page -->
+        <div id="trash-page" class="page">
+            <div class="page-header">
+                <h2>Trash</h2>
+                <p class="page-description">Ideas here are excluded from discovery. You can restore them anytime.</p>
+            </div>
+            
+            <div class="filters">
+                <input type="text" id="search-trash" placeholder="Search trashed ideas..." class="search-input">
+                <select id="filter-category-trash" class="filter-select">
+                    <option value="">All Categories</option>
+                </select>
+            </div>
+
+            <div id="trash-ideas-list" class="ideas-list"></div>
+        </div>
+
+        <!-- Import/Export Page -->
+        <div id="import-export-page" class="page">
+            <div class="page-header">
+                <h2>Import & Export</h2>
+            </div>
+
+            <div class="import-export-container">
+                <div class="section">
+                    <h3>Import Ideas</h3>
+                    <p>Upload an Excel (.xlsx), CSV, or JSON file containing ideas.</p>
+                    <input type="file" id="import-file" accept=".xlsx,.csv,.json" class="file-input">
+                    <button id="import-btn" class="primary-btn">Import File</button>
+                    <div id="import-preview" class="import-preview hidden"></div>
+                </div>
+
+                <div class="section">
+                    <h3>Export Ideas</h3>
+                    <div class="export-options">
+                        <button id="export-all-btn" class="btn btn-export">Export All (Excel)</button>
+                        <button id="export-fresh-btn" class="btn btn-export">Export Fresh Ideas (Excel)</button>
+                        <button id="export-used-btn" class="btn btn-export">Export Used (Excel)</button>
+                        <button id="export-trash-btn" class="btn btn-export">Export Trash (Excel)</button>
+                        <button id="export-backup-btn" class="btn btn-export">Full Backup (JSON)</button>
+                    </div>
+                    <p class="export-note">💡 Use Full Backup to save all your data and restore it on another device or browser.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Page -->
+        <div id="settings-page" class="page">
+            <div class="page-header">
+                <h2>Settings</h2>
+            </div>
+
+            <div class="settings-container">
+                <div class="setting-item">
+                    <label for="cooldown-days">
+                        <strong>Cooldown Period (days)</strong>
+                        <span class="setting-description">How long to wait before showing used ideas again</span>
+                    </label>
+                    <input type="number" id="cooldown-days" min="0" max="365" value="90" class="setting-input">
+                </div>
+
+                <div class="setting-item">
+                    <strong>Data Migration</strong>
+                    <span class="setting-description">If your default insights are not showing up correctly, click below to migrate existing ideas</span>
+                    <br><br>
+                    <button id="migrate-ideas-btn" class="btn btn-save">Migrate Existing Ideas</button>
+                    <p id="migration-status" style="margin-top: 0.5rem; color: var(--gray-600);"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Use Note -->
+    <div id="use-modal" class="modal">
+        <div class="modal-content">
+            <h3>Add a Note (Optional)</h3>
+            <textarea id="use-note" placeholder="Add any notes about how you used this idea..." rows="4"></textarea>
+            <div class="modal-buttons">
+                <button id="use-confirm-btn" class="primary-btn">Confirm</button>
+                <button id="use-cancel-btn" class="btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Edit Idea -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="edit-modal-title">Edit Idea</h3>
+            <div class="form-group">
+                <label>Title / Insight</label>
+                <input type="text" id="edit-title" class="form-input">
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="edit-description" rows="3" class="form-input"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Category</label>
+                <input type="text" id="edit-category" class="form-input">
+            </div>
+            <div class="form-group">
+                <label>Evidence / Execution Notes</label>
+                <textarea id="edit-evidence" rows="3" class="form-input"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Personal Notes</label>
+                <textarea id="edit-notes" rows="2" class="form-input"></textarea>
+            </div>
+            <div class="modal-buttons">
+                <button id="edit-save-btn" class="primary-btn">Save Changes</button>
+                <button id="edit-cancel-btn" class="btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Add New Idea -->
+    <div id="add-modal" class="modal">
+        <div class="modal-content">
+            <h3>Add New Idea</h3>
+            <div class="form-group">
+                <label>Title / Insight *</label>
+                <input type="text" id="add-title" class="form-input" required>
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="add-description" rows="3" class="form-input"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Category</label>
+                <input type="text" id="add-category" class="form-input">
+            </div>
+            <div class="form-group">
+                <label>Evidence / Execution Notes</label>
+                <textarea id="add-evidence" rows="3" class="form-input"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Personal Notes</label>
+                <textarea id="add-notes" rows="2" class="form-input"></textarea>
+            </div>
+            <div class="modal-buttons">
+                <button id="add-save-btn" class="primary-btn">Add Idea</button>
+                <button id="add-cancel-btn" class="btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading SheetJS from CDN for Excel support -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="default-data.js"></script>
+    <script src="app.js"></script>
+    <script src="import-export.js"></script>
+</body>
+</html>

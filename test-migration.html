@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Migration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px 5px;
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #4f46e5;
+        }
+        button.danger {
+            background: #ef4444;
+        }
+        button.danger:hover {
+            background: #dc2626;
+        }
+        .status {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            background: #f3f4f6;
+        }
+        .success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        pre {
+            background: #1f2937;
+            color: #f3f4f6;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            max-height: 400px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Migration Test Tool</h1>
+    <p>Use this page to test and fix the migration of existing ideas.</p>
+
+    <div>
+        <button onclick="checkStatus()">Check Current Status</button>
+        <button onclick="runMigration()">Run Migration</button>
+        <button onclick="viewData()">View All Data</button>
+        <button class="danger" onclick="clearData()">Clear All Data (⚠️ Dangerous)</button>
+    </div>
+
+    <div id="output"></div>
+
+    <script src="default-data.js"></script>
+    <script>
+        function checkStatus() {
+            const output = document.getElementById('output');
+            const stored = localStorage.getItem('ideaBank_ideas');
+            
+            if (!stored) {
+                output.innerHTML = '<div class="status error">❌ No ideas found in localStorage</div>';
+                return;
+            }
+
+            const ideas = JSON.parse(stored);
+            const total = ideas.length;
+            const withFlags = ideas.filter(i => i.isDefault !== undefined || i.isUserCreated !== undefined).length;
+            const withoutFlags = total - withFlags;
+            const defaultCount = ideas.filter(i => i.isDefault === true).length;
+            const userCount = ideas.filter(i => i.isUserCreated === true).length;
+
+            output.innerHTML = `
+                <div class="status success">
+                    <h3>📊 Current Status</h3>
+                    <ul>
+                        <li><strong>Total Ideas:</strong> ${total}</li>
+                        <li><strong>With Flags:</strong> ${withFlags}</li>
+                        <li><strong>Without Flags:</strong> ${withoutFlags} ${withoutFlags > 0 ? '⚠️ Need Migration' : '✅'}</li>
+                        <li><strong>Default Insights:</strong> ${defaultCount}</li>
+                        <li><strong>User Created:</strong> ${userCount}</li>
+                    </ul>
+                    ${withoutFlags > 0 ? '<p><strong>⚠️ Migration needed!</strong> Click "Run Migration" button.</p>' : '<p><strong>✅ All ideas are properly flagged!</strong></p>'}
+                </div>
+            `;
+        }
+
+        function runMigration() {
+            const output = document.getElementById('output');
+            const stored = localStorage.getItem('ideaBank_ideas');
+            
+            if (!stored) {
+                output.innerHTML = '<div class="status error">❌ No ideas found in localStorage</div>';
+                return;
+            }
+
+            if (typeof DEFAULT_IDEAS === 'undefined') {
+                output.innerHTML = '<div class="status error">❌ DEFAULT_IDEAS not loaded. Make sure default-data.js is included.</div>';
+                return;
+            }
+
+            const ideas = JSON.parse(stored);
+            let migrated = 0;
+            let alreadyMigrated = 0;
+
+            ideas.forEach(idea => {
+                if (idea.isDefault === undefined && idea.isUserCreated === undefined) {
+                    // Check if this is a default idea
+                    const isFromDefaultSet = DEFAULT_IDEAS.some(
+                        defaultIdea => defaultIdea.title === idea.title
+                    );
+                    
+                    if (isFromDefaultSet) {
+                        idea.isDefault = true;
+                        idea.isUserCreated = false;
+                    } else {
+                        idea.isDefault = false;
+                        idea.isUserCreated = true;
+                    }
+                    migrated++;
+                } else {
+                    alreadyMigrated++;
+                }
+            });
+
+            // Save back to localStorage
+            localStorage.setItem('ideaBank_ideas', JSON.stringify(ideas));
+
+            output.innerHTML = `
+                <div class="status success">
+                    <h3>✅ Migration Complete!</h3>
+                    <ul>
+                        <li><strong>Migrated:</strong> ${migrated} ideas</li>
+                        <li><strong>Already had flags:</strong> ${alreadyMigrated} ideas</li>
+                        <li><strong>Total:</strong> ${ideas.length} ideas</li>
+                    </ul>
+                    <p>Now refresh your main app (index.html) to see the changes!</p>
+                </div>
+            `;
+        }
+
+        function viewData() {
+            const output = document.getElementById('output');
+            const stored = localStorage.getItem('ideaBank_ideas');
+            
+            if (!stored) {
+                output.innerHTML = '<div class="status error">❌ No ideas found in localStorage</div>';
+                return;
+            }
+
+            const ideas = JSON.parse(stored);
+            
+            // Show first 5 ideas as sample
+            const sample = ideas.slice(0, 5).map(idea => ({
+                title: idea.title,
+                category: idea.category,
+                isDefault: idea.isDefault,
+                isUserCreated: idea.isUserCreated,
+                status: idea.status
+            }));
+
+            output.innerHTML = `
+                <div class="status">
+                    <h3>📋 Data Preview (first 5 ideas)</h3>
+                    <pre>${JSON.stringify(sample, null, 2)}</pre>
+                    <p><strong>Total ideas in storage:</strong> ${ideas.length}</p>
+                </div>
+            `;
+        }
+
+        function clearData() {
+            if (!confirm('⚠️ WARNING: This will delete ALL your ideas including custom ones. Are you sure?')) {
+                return;
+            }
+
+            if (!confirm('⚠️ FINAL WARNING: This action cannot be undone. Proceed?')) {
+                return;
+            }
+
+            localStorage.removeItem('ideaBank_ideas');
+            localStorage.removeItem('ideaBank_settings');
+
+            document.getElementById('output').innerHTML = `
+                <div class="status error">
+                    <h3>🗑️ Data Cleared</h3>
+                    <p>All localStorage data has been removed.</p>
+                    <p>Refresh your main app to reload the 143 default ideas.</p>
+                </div>
+            `;
+        }
+
+        // Auto-check on load
+        window.addEventListener('load', () => {
+            checkStatus();
+        });
+    </script>
+</body>
+</html>

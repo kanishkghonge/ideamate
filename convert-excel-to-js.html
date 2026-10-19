@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Convert Excel to default-data.js</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .btn {
+            padding: 10px 20px;
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn:hover {
+            background: #4f46e5;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            max-height: 500px;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Convert Excel to default-data.js</h1>
+    <p>Select your doctor_content_bank.xlsx file to generate the default-data.js file with all your ideas embedded.</p>
+    
+    <input type="file" id="fileInput" accept=".xlsx" style="margin: 20px 0;">
+    <br>
+    <button class="btn" onclick="convertExcel()">Convert Excel File</button>
+    
+    <div id="output"></div>
+
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script>
+        async function convertExcel() {
+            const fileInput = document.getElementById('fileInput');
+            const output = document.getElementById('output');
+            
+            if (!fileInput.files || !fileInput.files[0]) {
+                alert('Please select the Excel file first!');
+                return;
+            }
+            
+            output.innerHTML = '<p>Loading...</p>';
+            
+            try {
+                const file = fileInput.files[0];
+                const arrayBuffer = await file.arrayBuffer();
+                const data = new Uint8Array(arrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+
+                console.log('Sheets found:', workbook.SheetNames);
+
+                // Get Sheet2 (index 1)
+                const worksheet = workbook.Sheets[workbook.SheetNames[1]];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                console.log('Rows found:', jsonData.length);
+                console.log('Sample row:', jsonData[0]);
+
+                // Convert to our format
+                const ideas = jsonData.map(row => {
+                    const title = (row['Insight'] || row['Title'] || '').trim();
+                    const description = (row['Insight description'] || row['Description'] || '').trim();
+                    const category = (row['Category'] || 'Uncategorized').trim();
+                    const evidence = (row['Evidence / execution note'] || row['Evidence'] || '').trim();
+
+                    return {
+                        title,
+                        description,
+                        category,
+                        evidence
+                    };
+                }).filter(idea => idea.title); // Only include ideas with titles
+
+                console.log('Valid ideas:', ideas.length);
+
+                // Generate the JavaScript file content
+                const jsContent = `// Default ideas data - extracted from doctor_content_bank.xlsx Sheet2
+// Auto-generated - do not edit manually
+const DEFAULT_IDEAS = ${JSON.stringify(ideas, null, 2)};
+
+// Auto-load function that runs on page load
+function loadDefaultIdeas() {
+    // Check if we already have ideas in localStorage
+    const existingIdeas = localStorage.getItem('ideaBank_ideas');
+    
+    if (existingIdeas) {
+        const ideas = JSON.parse(existingIdeas);
+        if (ideas.length > 0) {
+            console.log('Ideas already loaded from localStorage:', ideas.length);
+            return false; // Don't load defaults
+        }
+    }
+
+    console.log('Loading default ideas:', DEFAULT_IDEAS.length);
+    
+    // Import the default ideas
+    if (typeof ideaBank !== 'undefined') {
+        DEFAULT_IDEAS.forEach(idea => {
+            ideaBank.addIdea({
+                ...idea,
+                isDefault: true,
+                isUserCreated: false
+            });
+        });
+        
+        if (typeof ui !== 'undefined') {
+            ui.updateStats();
+        }
+        
+        console.log('✅ Loaded ${ideas.length} default ideas successfully');
+        alert('✅ Loaded ${ideas.length} ideas from doctor_content_bank.xlsx!');
+        return false; // Loaded successfully
+    }
+    
+    return true; // ideaBank not ready
+}
+`;
+
+                // Show the output
+                output.innerHTML = `
+                    <h2 class="success">✅ Success! Found ${ideas.length} ideas</h2>
+                    <h3>Generated default-data.js:</h3>
+                    <pre>${jsContent}</pre>
+                    <button class="btn" onclick="downloadFile()">Download default-data.js</button>
+                    <p><strong>Next step:</strong> Click the button above to download, then replace the existing default-data.js file with this new one.</p>
+                `;
+
+                // Store for download
+                window.generatedContent = jsContent;
+
+            } catch (error) {
+                console.error('Error:', error);
+                output.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+
+        function downloadFile() {
+            const blob = new Blob([window.generatedContent], { type: 'text/javascript' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'default-data.js';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            alert('File downloaded! Replace the old default-data.js with this new one, then refresh your main app.');
+        }
+    </script>
+</body>
+</html>
