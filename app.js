@@ -96,6 +96,7 @@ class IdeaBank {
             title: ideaData.title,
             description: ideaData.description || '',
             category: ideaData.category || 'Uncategorized',
+            subcategory: ideaData.subcategory || '',
             evidence: ideaData.evidence || '',
             notes: ideaData.notes || '',
             status: 'fresh', // fresh, used, saved, trashed
@@ -104,6 +105,7 @@ class IdeaBank {
             trashedAt: null,
             savedAt: null,
             useNote: '',
+            useCount: ideaData.useCount || 0,
             isDefault: ideaData.isDefault || false, // Track if it's a default insight
             isUserCreated: ideaData.isUserCreated || false // Track if it's user-created
         };
@@ -129,6 +131,7 @@ class IdeaBank {
             idea.status = 'used';
             idea.usedAt = new Date().toISOString();
             idea.useNote = note;
+            idea.useCount = (idea.useCount || 0) + 1;
             this.saveIdeas();
         }
         return idea;
@@ -197,6 +200,7 @@ class IdeaBank {
             if (idea.status === 'trashed' || idea.status === 'saved') return false;
             if (this.sessionSkipped.has(idea.id)) return false;
             if (idea.status === 'used' && this.isInCooldown(idea)) return false;
+            if ((this.settings.excludedCategories || []).includes(idea.category) || (this.settings.excludedSubcategories || []).includes(idea.subcategory)) return false;
             return true;
         });
     }
@@ -230,8 +234,13 @@ class IdeaBank {
         return Array.from(categories).sort();
     }
 
+    getSubcategories(category = '') {
+        const items = this.ideas.filter(i => !category || i.category === category);
+        return Array.from(new Set(items.map(i => i.subcategory).filter(Boolean))).sort();
+    }
+
     // Search and filter ideas
-    searchIdeas(query, category = '', status = null, source = null) {
+    searchIdeas(query, category = '', status = null, source = null, subcategory = '') {
         let filtered = this.ideas;
         
         if (status) {
@@ -241,6 +250,7 @@ class IdeaBank {
         if (category) {
             filtered = filtered.filter(i => i.category === category);
         }
+        if (subcategory) filtered = filtered.filter(i => i.subcategory === subcategory);
         
         // Filter by source: 'default', 'user', or null (all)
         if (source === 'default') {
@@ -289,6 +299,7 @@ class IdeaBank {
                 title: newIdea.title,
                 description: newIdea.description || '',
                 category: newIdea.category || 'Uncategorized',
+                subcategory: newIdea.subcategory || '',
                 evidence: newIdea.evidence || '',
                 notes: newIdea.notes || '',
                 status: newIdea.status || 'fresh',
@@ -297,6 +308,9 @@ class IdeaBank {
                 trashedAt: newIdea.trashedAt || null,
                 savedAt: newIdea.savedAt || null,
                 useNote: newIdea.useNote || ''
+                ,useCount: newIdea.useCount || 0,
+                isDefault: newIdea.isDefault === true,
+                isUserCreated: newIdea.isUserCreated === true
             };
             
             this.ideas.push(idea);
@@ -436,6 +450,30 @@ class UIManager {
         document.getElementById('save-btn').addEventListener('click', () => this.handleSaveIdea());
         document.getElementById('skip-btn').addEventListener('click', () => this.handleSkipIdea());
         document.getElementById('edit-btn').addEventListener('click', () => this.handleEditIdea());
+        document.getElementById('save-idea-notes-btn').addEventListener('click', () => {
+            if (this.ideaBank.currentIdea) {
+                const description = document.getElementById('idea-notes').value;
+                this.ideaBank.updateIdea(this.ideaBank.currentIdea.id, { description, notes: description });
+                document.getElementById('idea-description').textContent = description || 'No description provided.';
+            }
+        });
+        document.getElementById('exclude-category-toggle').addEventListener('change', () => this.renderDiscoveryExclusions());
+        this.renderDiscoveryExclusions();
+    }
+
+    renderDiscoveryExclusions() {
+        const box = document.getElementById('discover-exclusion-list');
+        if (!document.getElementById('exclude-category-toggle').checked) { box.classList.add('hidden'); return; }
+        box.classList.remove('hidden');
+        const cats = this.ideaBank.getCategories(), subs = this.ideaBank.getSubcategories();
+        box.innerHTML = cats.map(v => `<label><input type="checkbox" data-exclude-category="${v}" ${(this.ideaBank.settings.excludedCategories || []).includes(v) ? 'checked' : ''}> ${v}</label>`).join('') + subs.map(v => `<label><input type="checkbox" data-exclude-subcategory="${v}" ${(this.ideaBank.settings.excludedSubcategories || []).includes(v) ? 'checked' : ''}> ${v}</label>`).join('');
+        box.querySelectorAll('input').forEach(input => input.addEventListener('change', e => {
+            const key = e.target.dataset.excludeCategory ? 'excludedCategories' : 'excludedSubcategories';
+            const value = e.target.dataset.excludeCategory || e.target.dataset.excludeSubcategory;
+            const list = this.ideaBank.settings[key] || [];
+            this.ideaBank.settings[key] = e.target.checked ? [...new Set([...list, value])] : list.filter(x => x !== value);
+            this.ideaBank.saveSettings();
+        }));
     }
 
     showRandomIdea() {
@@ -452,9 +490,11 @@ class UIManager {
         this.ideaBank.currentIdea = idea;
         
         document.getElementById('idea-category').textContent = idea.category;
+        document.getElementById('idea-subcategory').textContent = idea.subcategory || '';
         document.getElementById('idea-title').textContent = idea.title;
         document.getElementById('idea-description').textContent = idea.description || 'No description provided.';
         document.getElementById('idea-evidence').textContent = idea.evidence || 'No evidence or execution notes provided.';
+        document.getElementById('idea-notes').value = idea.notes || '';
         
         ideaCard.classList.remove('hidden');
         noIdeasMsg.classList.add('hidden');
@@ -503,6 +543,7 @@ class UIManager {
         document.getElementById('edit-title').value = idea.title;
         document.getElementById('edit-description').value = idea.description;
         document.getElementById('edit-category').value = idea.category;
+        document.getElementById('edit-subcategory').value = idea.subcategory || '';
         document.getElementById('edit-evidence').value = idea.evidence;
         document.getElementById('edit-notes').value = idea.notes;
         
@@ -520,6 +561,7 @@ class UIManager {
         // Search and filter
         document.getElementById('search-all').addEventListener('input', () => this.renderAllIdeas());
         document.getElementById('filter-category-all').addEventListener('change', () => this.renderAllIdeas());
+        document.getElementById('toggle-table-btn').addEventListener('click', () => { this.tableView = !this.tableView; this.renderAllIdeas(); });
     }
 
     renderAllIdeas() {
@@ -531,7 +573,7 @@ class UIManager {
         this.renderIdeasList(ideas, 'all-ideas-list', {
             showEdit: true,
             showRestore: false,
-            showDelete: true
+            showDelete: true, table: this.tableView
         });
     }
 
@@ -645,6 +687,10 @@ class UIManager {
             container.innerHTML = '<div class="message"><p>No ideas found.</p></div>';
             return;
         }
+        if (options.table) {
+            container.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Question / Insight</th><th>Category</th><th>Subcategory</th><th>Used</th><th>Notes</th><th></th></tr></thead><tbody>${ideas.map(i => `<tr><td>${i.title}</td><td>${i.category}</td><td>${i.subcategory || ''}</td><td>${i.useCount || 0}</td><td>${i.notes || ''}</td><td><button class="btn btn-edit" onclick="ui.editIdeaFromList('${i.id}')">Edit</button></td></tr>`).join('')}</tbody></table></div>`;
+            return;
+        }
         
         container.innerHTML = ideas.map(idea => {
             const usedInfo = options.showUsedInfo && idea.usedAt ? 
@@ -672,7 +718,8 @@ class UIManager {
                     <div class="idea-item-header">
                         <div class="idea-item-title">
                             <h3>${idea.title}</h3>
-                            <span class="idea-item-category">${idea.category}</span>
+                            <span class="idea-item-category">${idea.category}${idea.subcategory ? ' · ' + idea.subcategory : ''}</span>
+                            <span class="idea-item-category">Used ${idea.useCount || 0}×</span>
                             ${sourceInfo}
                         </div>
                     </div>
@@ -861,6 +908,7 @@ class UIManager {
         document.getElementById('add-title').value = '';
         document.getElementById('add-description').value = '';
         document.getElementById('add-category').value = '';
+        document.getElementById('add-subcategory').value = '';
         document.getElementById('add-evidence').value = '';
         document.getElementById('add-notes').value = '';
         
@@ -885,6 +933,7 @@ class UIManager {
             title,
             description: document.getElementById('add-description').value.trim(),
             category: document.getElementById('add-category').value.trim() || 'Uncategorized',
+            subcategory: document.getElementById('add-subcategory').value.trim(),
             evidence: document.getElementById('add-evidence').value.trim(),
             notes: document.getElementById('add-notes').value.trim(),
             isUserCreated: isUserCreated
@@ -909,6 +958,7 @@ class UIManager {
             title,
             description: document.getElementById('edit-description').value.trim(),
             category: document.getElementById('edit-category').value.trim() || 'Uncategorized',
+            subcategory: document.getElementById('edit-subcategory').value.trim(),
             evidence: document.getElementById('edit-evidence').value.trim(),
             notes: document.getElementById('edit-notes').value.trim()
         });
@@ -934,23 +984,21 @@ class UIManager {
 let ideaBank;
 let ui;
 
-// Auto-load Excel file on first run
-async function autoLoadExcelFile() {
-    // Check if ideas are already loaded
-    if (ideaBank.ideas.length > 0) {
-        console.log('Ideas already loaded:', ideaBank.ideas.length);
-        return;
-    }
-
-    console.log('No ideas found, attempting to auto-load doctor_content_bank.xlsx...');
+// Seed the bundled insights on first run. Runtime Excel loading is intentionally disabled.
+function autoLoadExcelFile() {
+    console.log('Checking bundled hardcoded insights...');
 
     try {
-        const response = await fetch('doctor_content_bank.xlsx');
-        if (!response.ok) {
-            console.log('Excel file not found in directory');
+        const allIdeas = DEFAULT_IDEAS.filter(seed => !ideaBank.ideas.some(existing =>
+            ideaBank.normalizeText(existing.title) === ideaBank.normalizeText(seed.title)
+        ));
+
+        /* legacy Excel auto-loader removed */
+        if (!allIdeas.length) {
+            console.log('All bundled insights are already loaded.');
             return;
         }
-
+        /*
         const arrayBuffer = await response.arrayBuffer();
         const data = new Uint8Array(arrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
@@ -987,7 +1035,7 @@ async function autoLoadExcelFile() {
             }
         }
 
-        if (allIdeas.length > 0) {
+        if (allIdeas.length > 0) {*/
             console.log(`Auto-loading ${allIdeas.length} ideas...`);
             
             // Import ideas
@@ -998,8 +1046,8 @@ async function autoLoadExcelFile() {
             ui.updateStats();
             
             // Show success message
-            alert(`✅ Auto-loaded ${result.imported.length} ideas from doctor_content_bank.xlsx!`);
-        }
+            alert(`✅ Loaded ${result.imported.length} bundled insights.`);
+        // }
 
     } catch (error) {
         console.error('Auto-load failed:', error);

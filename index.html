@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="manifest" href="manifest.json">
     <title>Content Idea Bank</title>
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -48,13 +52,20 @@
 
             <div class="discover-container">
                 <button id="give-idea-btn" class="primary-btn">Give Me an Idea</button>
+                <div class="discover-filters"><label><input type="checkbox" id="exclude-category-toggle"> Exclude categories/subcategories</label><div id="discover-exclusion-list" class="hidden"></div></div>
                 
                 <div id="idea-card" class="idea-card hidden">
                     <div class="category-badge" id="idea-category"></div>
+                    <div class="idea-subcategory" id="idea-subcategory"></div>
                     <h2 id="idea-title"></h2>
                     <div class="idea-section">
                         <h3>Description</h3>
                         <p id="idea-description"></p>
+                    </div>
+                    <div class="idea-section">
+                        <h3>Description / Notes</h3>
+                        <textarea id="idea-notes" rows="3" placeholder="Notes about this insight..."></textarea>
+                        <button id="save-idea-notes-btn" class="btn">Save Notes</button>
                     </div>
                     <div class="idea-section">
                         <h3>Evidence / Execution Notes</h3>
@@ -81,6 +92,7 @@
             <div class="page-header">
                 <h2>All Ideas</h2>
                 <button id="add-idea-btn" class="primary-btn">+ Add New Idea</button>
+                <button id="toggle-table-btn" class="btn">Table View</button>
             </div>
             
             <div class="filters">
@@ -97,7 +109,7 @@
         <div id="default-insights-page" class="page">
             <div class="page-header">
                 <h2>📚 Default Insights</h2>
-                <p class="page-description">Insights from the doctor_content_bank.xlsx - these are the default ideas provided with the system.</p>
+                <p class="page-description">Bundled hardcoded insights from the clinic growth map.</p>
             </div>
             
             <div class="filters">
@@ -186,8 +198,8 @@
             <div class="import-export-container">
                 <div class="section">
                     <h3>Import Ideas</h3>
-                    <p>Upload an Excel (.xlsx), CSV, or JSON file containing ideas.</p>
-                    <input type="file" id="import-file" accept=".xlsx,.csv,.json" class="file-input">
+                    <p>Import a JSON backup file. Excel is intentionally not used for app data.</p>
+                    <input type="file" id="import-file" accept=".json" class="file-input">
                     <button id="import-btn" class="primary-btn">Import File</button>
                     <div id="import-preview" class="import-preview hidden"></div>
                 </div>
@@ -260,6 +272,7 @@
                 <label>Category</label>
                 <input type="text" id="edit-category" class="form-input">
             </div>
+            <div class="form-group"><label>Subcategory</label><input type="text" id="edit-subcategory" class="form-input"></div>
             <div class="form-group">
                 <label>Evidence / Execution Notes</label>
                 <textarea id="edit-evidence" rows="3" class="form-input"></textarea>
@@ -291,6 +304,7 @@
                 <label>Category</label>
                 <input type="text" id="add-category" class="form-input">
             </div>
+            <div class="form-group"><label>Subcategory</label><input type="text" id="add-subcategory" class="form-input"></div>
             <div class="form-group">
                 <label>Evidence / Execution Notes</label>
                 <textarea id="add-evidence" rows="3" class="form-input"></textarea>
