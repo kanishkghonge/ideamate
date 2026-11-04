@@ -547,6 +547,17 @@ class UIManager {
         document.getElementById('edit-evidence').value = idea.evidence;
         document.getElementById('edit-notes').value = idea.notes;
         
+        // Populate category dropdown
+        this.populateCategoryDatalist('edit-category-list');
+        // Populate subcategory based on current category
+        this.updateSubcategoryDatalist('edit-subcategory-list', idea.category);
+        
+        // Set up dynamic subcategory update
+        const categoryInput = document.getElementById('edit-category');
+        categoryInput.addEventListener('input', () => {
+            this.updateSubcategoryDatalist('edit-subcategory-list', categoryInput.value);
+        });
+        
         const modal = document.getElementById('edit-modal');
         modal.classList.add('active');
         modal.dataset.ideaId = idea.id;
@@ -773,12 +784,38 @@ class UIManager {
         document.getElementById('edit-title').value = idea.title;
         document.getElementById('edit-description').value = idea.description;
         document.getElementById('edit-category').value = idea.category;
+        document.getElementById('edit-subcategory').value = idea.subcategory || '';
         document.getElementById('edit-evidence').value = idea.evidence;
         document.getElementById('edit-notes').value = idea.notes;
+        
+        // Populate category dropdown
+        this.populateCategoryDatalist('edit-category-list');
+        // Populate subcategory based on current category
+        this.updateSubcategoryDatalist('edit-subcategory-list', idea.category);
+        
+        // Set up dynamic subcategory update
+        const categoryInput = document.getElementById('edit-category');
+        categoryInput.addEventListener('input', () => {
+            this.updateSubcategoryDatalist('edit-subcategory-list', categoryInput.value);
+        });
         
         const modal = document.getElementById('edit-modal');
         modal.classList.add('active');
         modal.dataset.ideaId = id;
+    }
+
+    // Populate category datalist with all existing categories
+    populateCategoryDatalist(datalistId) {
+        const datalist = document.getElementById(datalistId);
+        const categories = this.ideaBank.getCategories();
+        datalist.innerHTML = categories.map(cat => `<option value="${cat}">`).join('');
+    }
+
+    // Update subcategory datalist based on selected category
+    updateSubcategoryDatalist(datalistId, category) {
+        const datalist = document.getElementById(datalistId);
+        const subcategories = this.ideaBank.getSubcategories(category);
+        datalist.innerHTML = subcategories.map(sub => `<option value="${sub}">`).join('');
     }
 
     restoreIdea(id) {
@@ -911,6 +948,15 @@ class UIManager {
         document.getElementById('add-subcategory').value = '';
         document.getElementById('add-evidence').value = '';
         document.getElementById('add-notes').value = '';
+        
+        // Populate category dropdown
+        this.populateCategoryDatalist('category-list');
+        
+        // Set up dynamic subcategory update
+        const categoryInput = document.getElementById('add-category');
+        categoryInput.addEventListener('input', () => {
+            this.updateSubcategoryDatalist('subcategory-list', categoryInput.value);
+        });
         
         const modal = document.getElementById('add-modal');
         modal.classList.add('active');

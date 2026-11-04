@@ -270,9 +270,14 @@
             </div>
             <div class="form-group">
                 <label>Category</label>
-                <input type="text" id="edit-category" class="form-input">
+                <input type="text" id="edit-category" class="form-input" list="edit-category-list" placeholder="Select or type new category">
+                <datalist id="edit-category-list"></datalist>
             </div>
-            <div class="form-group"><label>Subcategory</label><input type="text" id="edit-subcategory" class="form-input"></div>
+            <div class="form-group">
+                <label>Subcategory</label>
+                <input type="text" id="edit-subcategory" class="form-input" list="edit-subcategory-list" placeholder="Select or type new subcategory">
+                <datalist id="edit-subcategory-list"></datalist>
+            </div>
             <div class="form-group">
                 <label>Evidence / Execution Notes</label>
                 <textarea id="edit-evidence" rows="3" class="form-input"></textarea>
@@ -302,9 +307,14 @@
             </div>
             <div class="form-group">
                 <label>Category</label>
-                <input type="text" id="add-category" class="form-input">
+                <input type="text" id="add-category" class="form-input" list="category-list" placeholder="Select or type new category">
+                <datalist id="category-list"></datalist>
             </div>
-            <div class="form-group"><label>Subcategory</label><input type="text" id="add-subcategory" class="form-input"></div>
+            <div class="form-group">
+                <label>Subcategory</label>
+                <input type="text" id="add-subcategory" class="form-input" list="subcategory-list" placeholder="Select or type new subcategory">
+                <datalist id="subcategory-list"></datalist>
+            </div>
             <div class="form-group">
                 <label>Evidence / Execution Notes</label>
                 <textarea id="add-evidence" rows="3" class="form-input"></textarea>
