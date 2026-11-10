@@ -240,6 +240,16 @@
                     <button id="migrate-ideas-btn" class="btn btn-save">Migrate Existing Ideas</button>
                     <p id="migration-status" style="margin-top: 0.5rem; color: var(--gray-600);"></p>
                 </div>
+
+                <div class="setting-item">
+                    <strong>WebDAV Sync</strong>
+                    <span class="setting-description">Store and restore a JSON backup on your WebDAV server. Credentials stay in this browser.</span>
+                    <div class="form-group" style="margin-top: 1rem;"><label for="webdav-url">WebDAV file URL</label><input type="url" id="webdav-url" class="form-input" placeholder="https://cloud.example.com/remote.php/dav/files/me/ideamate.json" autocomplete="url"></div>
+                    <div class="form-group"><label for="webdav-username">Username</label><input type="text" id="webdav-username" class="form-input" autocomplete="username"></div>
+                    <div class="form-group"><label for="webdav-password">Password / app password</label><input type="password" id="webdav-password" class="form-input" autocomplete="current-password"></div>
+                    <div class="modal-buttons" style="justify-content: flex-start;"><button id="webdav-test-btn" class="btn">Test Connection</button><button id="webdav-upload-btn" class="btn btn-save">Upload Backup</button><button id="webdav-download-btn" class="btn">Download Backup</button></div>
+                    <p id="webdav-status" style="margin-top: 0.5rem; color: var(--gray-600);"></p>
+                </div>
             </div>
         </div>
     </div>

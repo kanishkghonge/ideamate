@@ -1030,6 +1030,21 @@ class UIManager {
 let ideaBank;
 let ui;
 
+class WebDAVManager {
+    constructor(ideaBank, ui) { this.ideaBank = ideaBank; this.ui = ui; this.loadFields(); this.bindEvents(); }
+    config() { return { url: document.getElementById('webdav-url').value.trim(), username: document.getElementById('webdav-username').value, password: document.getElementById('webdav-password').value }; }
+    loadFields() { try { const c = JSON.parse(localStorage.getItem('ideaBank_webdav') || '{}'); ['url', 'username', 'password'].forEach(k => { const el = document.getElementById(`webdav-${k}`); if (el) el.value = c[k] || ''; }); } catch (_) {} }
+    saveFields(c) { localStorage.setItem('ideaBank_webdav', JSON.stringify(c)); }
+    status(text, error = false) { const el = document.getElementById('webdav-status'); el.textContent = text; el.style.color = error ? '#b91c1c' : 'var(--gray-600)'; }
+    async request(method, body) { const c = this.config(); if (!c.url) throw new Error('Enter a WebDAV file URL first.'); this.saveFields(c); const headers = {}; if (c.username || c.password) headers.Authorization = `Basic ${btoa(`${c.username}:${c.password}`)}`; if (body !== undefined) { headers['Content-Type'] = 'application/json'; } const r = await fetch(c.url, { method, headers, body }); if (!r.ok) throw new Error(`${r.status} ${r.statusText}`); return r; }
+    backup() { return JSON.stringify({ version: '1.0', exportedAt: new Date().toISOString(), settings: this.ideaBank.settings, ideas: this.ideaBank.ideas }, null, 2); }
+    bindEvents() {
+        document.getElementById('webdav-test-btn').onclick = async () => { try { await this.request('GET'); this.status('Connection successful.'); } catch (e) { this.status(`Connection failed: ${e.message}`, true); } };
+        document.getElementById('webdav-upload-btn').onclick = async () => { try { await this.request('PUT', this.backup()); this.status('Backup uploaded successfully.'); } catch (e) { this.status(`Upload failed: ${e.message}`, true); } };
+        document.getElementById('webdav-download-btn').onclick = async () => { try { const backup = await (await this.request('GET')).json(); if (!Array.isArray(backup.ideas)) throw new Error('The file is not a valid Idea Bank backup.'); if (!confirm(`Replace local data with ${backup.ideas.length} ideas from WebDAV?`)) return; this.ideaBank.ideas = backup.ideas; if (backup.settings) this.ideaBank.settings = backup.settings; this.ideaBank.saveIdeas(); this.ideaBank.saveSettings(); this.ui.updateStats(); this.ui.showPage(this.ui.currentPage); this.status('Backup downloaded successfully.'); } catch (e) { this.status(`Download failed: ${e.message}`, true); } };
+    }
+}
+
 // Seed the bundled insights on first run. Runtime Excel loading is intentionally disabled.
 function autoLoadExcelFile() {
     console.log('Checking bundled hardcoded insights...');
@@ -1091,8 +1106,7 @@ function autoLoadExcelFile() {
             // Update UI
             ui.updateStats();
             
-            // Show success message
-            alert(`✅ Loaded ${result.imported.length} bundled insights.`);
+            // Startup loading is intentionally silent.
         // }
 
     } catch (error) {
@@ -1114,4 +1128,5 @@ document.addEventListener('DOMContentLoaded', () => {
             autoLoadExcelFile();
         }
     }, 500);
+    setTimeout(() => new WebDAVManager(ideaBank, ui), 100);
 });
